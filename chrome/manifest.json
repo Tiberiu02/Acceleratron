@@ -1,0 +1,16 @@
+{
+  "name": "Acceleratron",
+  "action": {},
+  "manifest_version": 3,
+  "version": "0.1",
+  "description": "Enhance YouTube learning through AI-generated questions",
+  "permissions": ["storage"],
+  "content_scripts": [
+    {
+      "matches": ["https://*.youtube.com/*"],
+      "js": ["script.js"],
+      "all_frames": true
+    }
+  ],
+  "icons": { "128": "icon.png" }
+}

@@ -1,9 +1,5 @@
 'use strict';
 
-// 1. Get your OpenAI API key at https://beta.openai.com/account/api-keys
-// 2. Put it between the quotes on the line below:
-let OPENAI_API_KEY = "your OpenAI API key here";
-
 let qGenPrompt =
 `Turn the following statements into questions. Provide the correct answer, as well as 3 incorrect and different alternatives separated by semicolon.
 """
@@ -85,6 +81,16 @@ let sampleQuestions = [
         "Incorrect alternatives": ["Make good videos", "Use social media platforms", "Promote their videos"]
     },
 ];
+
+Array.prototype.remove = function(item) {
+    for (let i = 0; i < this.length; i++) {
+        if (this[i] === item) {
+            this.splice(i, 1);
+        }
+    }
+}
+
+let OPENAI_API_KEY;
 
 let getParams = () => {
     var result = {};
@@ -292,23 +298,28 @@ let createButton = () => {
     return btn;
 };
 
+let htmlLink = (text, href) => `<a href='${href}' target='_blank' class='yt-simple-endpoint style-scope yt-formatted-string'>${text}</a>`;
+
 let subtitles;
-let displayQuestions = async () => {
+let displayQuestions = async (newDiv) => {
     let darkMode = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
     // Create new section for questions
-    let mainDiv = await getElement(document, "#primary-inner");
-    let metaDiv = await getElement(mainDiv, "#meta");
-    let newDiv = document.createElement("ytd-video-primary-info-renderer");
-    newDiv.classList.add("style-scope");
-    newDiv.classList.add("ytd-watch-flexy");
-    newDiv.style.fontSize = "1.4rem";
-    newDiv.style.fontWeight = "400";
-    newDiv.style.letterSpacing = ".5px";
-    newDiv.style.color = (darkMode ? "#fff" : "#030303");
-    newDiv.style.paddingBottom = "16px";
-    mainDiv.insertBefore(newDiv, metaDiv);
-    registeredElements.push(newDiv);
+    if (newDiv == undefined) {
+        let mainDiv = await getElement(document, "#primary-inner");
+        let metaDiv = await getElement(mainDiv, "#meta");
+        newDiv = document.createElement("ytd-video-primary-info-renderer");
+        newDiv.classList.add("style-scope");
+        newDiv.classList.add("ytd-watch-flexy");
+        newDiv.style.fontSize = "1.4rem";
+        newDiv.style.fontWeight = "400";
+        newDiv.style.letterSpacing = ".5px";
+        newDiv.style.color = (darkMode ? "#fff" : "#030303");
+        newDiv.style.paddingBottom = "16px";
+        mainDiv.insertBefore(newDiv, metaDiv);
+        registeredElements.push(newDiv);
+    } else
+        newDiv.innerHTML = "";
 
     try {
         // Load OpenAI key
@@ -318,10 +329,10 @@ let displayQuestions = async () => {
         console.log(OPENAI_API_KEY);
         // Or ask for it if missing
         if (OPENAI_API_KEY == undefined) {
-            let htmlLink = (text, href) => `<a href='${href}' target='_blank' class='yt-simple-endpoint style-scope yt-formatted-string'>${text}</a>`;
             newDiv.innerHTML = "Welcome! There is one last thing we need before you can enjoy the new era of online learning. The AI used to generate the questions is powered by OpenAI GPT-3. ";
             newDiv.innerHTML += "We kindly ask you to connect your OpenAI account. Creating an OpenAI account is free and you will get a signup bonus of $18, which should be enough for about 150 videos. ";
-            newDiv.innerHTML += "Your secret API key will be stored locally and we will never get to know it.<br><br>"
+            newDiv.innerHTML += "Your secret API key will be stored locally and we will never get to know it. ";
+            newDiv.innerHTML += `You can check for yourself by taking a look at our ${htmlLink("codebase", "https://github.com/tiberiu02/acceleratron")}.<br><br>`;
             newDiv.innerHTML += "<b>Please link your OpenAI account by following the steps below.</b><br><br>";
             newDiv.innerHTML += `1. Create an ${htmlLink('OpenAI', 'https://beta.openai.com/signup')} account if you don't already own one.<br>`;
             newDiv.innerHTML += `2. Go ${htmlLink('here', 'https://beta.openai.com/account/api-keys')} and copy your secret API key.<br>`;
@@ -353,6 +364,12 @@ let displayQuestions = async () => {
             await new Promise((resolve, reject) => {
                 btn.onclick = async () => {
                     btn.style.display = "none";
+                    let spinner = document.createElement('tp-yt-paper-spinner');
+                    spinner.setAttribute('active', '');
+                    spinner.style.display = "block";
+                    spinner.style.marginTop = "10px";
+                    newDiv.appendChild(spinner);
+
                     const url = 'https://api.openai.com/v1/engines';
                     const init = {
                         method: 'GET',
@@ -368,6 +385,7 @@ let displayQuestions = async () => {
                         error.innerHTML = resp.error.message;
                         error.style.display = "block";
                         btn.style.display = "";
+                        spinner.remove();
                     } else {
                         OPENAI_API_KEY = input.value;
                         chrome.storage.local.set({'openai-api-key': OPENAI_API_KEY});
@@ -390,11 +408,13 @@ let displayQuestions = async () => {
         // Start quiz
         let correctAnswers = 0;
         let showQuestion = (qIx) => {
+            // Started first question
             if (qIx == 0) {
                 spinner.remove();
-                registeredElements.pop(spinner);
+                registeredElements.remove(spinner);
                 newDiv.style.textAlign = "left";
             }
+            // Finished last questions
             if (qIx == questions.length) {
                 newDiv.innerHTML = `<span style="font-weight:500;">You correctly answered ${correctAnswers} out of ${questions.length} questions. Keep going!</span>`;
                 questions.forEach((q, ix) => {
@@ -402,6 +422,19 @@ let displayQuestions = async () => {
                     q['Incorrect alternatives'].forEach(a => { newDiv.innerHTML += `<br>Incorrect: ${a}`; });
                     newDiv.innerHTML += `<br>Correct: ${q['Correct answer']}`;
                 });
+                newDiv.innerHTML += "<br><br>";
+                newDiv.innerHTML += `You can give us feedback ${htmlLink("here", "https://forms.gle/TByjuLzSvfPDNt6c8")}.<br>`;
+                let storeLink = "https://chrome.google.com/webstore/detail/acceleratron/aiapdmpheililjeajjjdcifiedokecaj";
+                newDiv.innerHTML += `If you enjoy the extension, please consider giving us a 5-star review ${htmlLink("here", storeLink)}.<br>`;
+                newDiv.innerHTML += `See your remaining OpenAI quota ${htmlLink("here", "https://beta.openai.com/account/usage")}.<br>`;
+                newDiv.innerHTML += "<br>";
+                let btn = createButton();
+                btn.innerHTML = "More questions";
+                btn.style.margin = "0px";
+                btn.onclick = () => {
+                    displayQuestions(newDiv);
+                }
+                newDiv.appendChild(btn);
                 return;
             }
 
@@ -499,7 +532,7 @@ let addQuestionsButton = async () => {
     btn.innerHTML = "QUESTIONS";
     btn.onclick = () => {
         btn.remove();
-        registeredElements.pop(btn);
+        registeredElements.remove(btn);
         displayQuestions();
     };
     menuDiv.prepend(btn);

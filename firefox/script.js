@@ -175,7 +175,7 @@ let GPT3 = async (engine, opts) => {
         },
         body: JSON.stringify(opts)
     };
-    let resp = await fetch(url, init);
+    let resp = await fetch(new Request(url, init)); // [!] browser incompatibility
     resp = await resp.json();
     console.log(resp);
     return resp.choices[0].text;
@@ -323,9 +323,7 @@ let displayQuestions = async (newDiv) => {
 
     try {
         // Load OpenAI key
-        OPENAI_API_KEY = await new Promise((resolve, reject) => 
-            chrome.storage.local.get(['openai-api-key'], result => resolve(result['openai-api-key']))
-        );
+        OPENAI_API_KEY = (await browser.storage.local.get('openai-api-key'))["openai-api-key"]; // [!] browser incompatibility
         console.log(OPENAI_API_KEY);
         // Or ask for it if missing
         if (!OPENAI_API_KEY) {
@@ -378,7 +376,7 @@ let displayQuestions = async (newDiv) => {
                             'Authorization': 'Bearer ' + input.value
                         }
                     };
-                    let resp = await fetch(url, init);
+                    let resp = await fetch(new Request(url, init)); // [!] browser incompatibility
                     resp = await resp.json();
                     console.log(resp);
                     if (resp.error) {
@@ -388,7 +386,7 @@ let displayQuestions = async (newDiv) => {
                         spinner.remove();
                     } else {
                         OPENAI_API_KEY = input.value;
-                        chrome.storage.local.set({'openai-api-key': OPENAI_API_KEY});
+                        browser.storage.local.set({'openai-api-key': OPENAI_API_KEY}); // [!] browser incompatibility
                         resolve();
                     }
                 }
